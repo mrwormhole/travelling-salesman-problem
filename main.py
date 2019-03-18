@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 
 
-def get_distances(distances_file, matrix_length):
+def get_distances(distances_file, cities_count):
     """
     This constructs our distance 2 dimensional matrix
     Input: 1 4 Output: [[1,4],[2,1]
@@ -17,13 +17,13 @@ def get_distances(distances_file, matrix_length):
     all_distances = list()
     for each_line in distances_file:
         current = list()
-        for i in range(matrix_length):
+        for i in range(cities_count):
             current.append(int(each_line.split()[i]))
         all_distances.append(current)
     return all_distances
 
 
-def get_specific_permutations(startPoint, arr):
+def get_specific_permutations(start_point, arr):
     """
     This gets rid of opposite mirrored permutations from list
     Input: [1,2,3],1 Output: [(1,2,3),(1,3,2)]
@@ -35,7 +35,7 @@ def get_specific_permutations(startPoint, arr):
             all_permutations.remove(perm[::-1])
 
     for perm in all_permutations:
-        if perm[0] == startPoint:
+        if perm[0] == start_point:
             specific_permutations.append(perm)
 
     return specific_permutations
@@ -44,7 +44,7 @@ def get_specific_permutations(startPoint, arr):
 def do_exhaustive_search(starting_point, distances_matrix):
     start_point = starting_point  # 0 means A, 1 means B, 2 means C etc.
     matrix_length = len(distances_matrix)
-    if starting_point >= matrix_length or start_point <= 0:
+    if start_point >= matrix_length or start_point <= 0:
         start_point = 0
     cities = list()  # we resemble [A,B,C,D,E] as [0,1,2,3,4]
     for i in range(matrix_length):
@@ -93,19 +93,19 @@ def rank_routes(population, distances_matrix):
     return sorted(fitness_results.items(), key=operator.itemgetter(1), reverse=True)
 
 
-def selection(popRanked, eliteSize):
+def selection(population_ranked, elite_size):
     selection_results = []
-    df = pd.DataFrame(np.array(popRanked), columns=["Index", "Fitness"])
+    df = pd.DataFrame(np.array(population_ranked), columns=["Index", "Fitness"])
     df["cum_sum"] = df.Fitness.cumsum()
     df["cum_perc"] = 100 * df.cum_sum/df.Fitness.sum()
 
-    for i in range(eliteSize):
-        selection_results.append(popRanked[i][0])
-    for i in range(len(popRanked) - eliteSize):
+    for i in range(elite_size):
+        selection_results.append(population_ranked[i][0])
+    for i in range(len(population_ranked) - elite_size):
         pick = 100 * random.random()
-        for i in range(len(popRanked)):
+        for i in range(len(population_ranked)):
             if pick <= df.iat[i, 3]:
-                selection_results.append(popRanked[i][0])
+                selection_results.append(population_ranked[i][0])
                 break
     return selection_results
 
@@ -137,12 +137,12 @@ def breed(parent1, parent2):
     return child
 
 
-def breed_population(mating_pool, eliteSize):
+def breed_population(mating_pool, elite_size):
     children = []
-    length = len(mating_pool) - eliteSize
+    length = len(mating_pool) - elite_size
     pool = random.sample(mating_pool, len(mating_pool))
 
-    for i in range(eliteSize):
+    for i in range(elite_size):
         children.append(mating_pool[i])
 
     for i in range(length):
@@ -163,29 +163,29 @@ def mutate(individual, mutation_rate):
 
 
 def mutate_population(population, mutation_rate):
-    popMutated = []
+    population_mutated = []
 
     for i in range(len(population)):
         individual = mutate(population[i], mutation_rate)
-        popMutated.append(individual)
-    return popMutated
+        population_mutated.append(individual)
+    return population_mutated
 
 
-def generate_new_generation(current_generation, eliteSize, mutation_rate, distances_matrix):
+def generate_new_generation(current_generation, elite_size, mutation_rate, distances_matrix):
     popRanked = rank_routes(current_generation, distances_matrix)
-    selection_results = selection(popRanked, eliteSize)
+    selection_results = selection(popRanked, elite_size)
     mating_pool = get_mating_pool(current_generation, selection_results)
-    children = breed_population(mating_pool, eliteSize)
+    children = breed_population(mating_pool, elite_size)
     next_generation = mutate_population(children, mutation_rate)
     return next_generation
 
 
-def do_genetic_search(distances_matrix, cities_count, population_size, eliteSize, mutation_rate, generations):
-    population = create_initial_population(population_size, cities_count)
+def do_genetic_search(population_size, elite_size, mutation_rate, generations, distances_matrix):
+    population = create_initial_population(population_size, len(distances_matrix[0]))
     print("Initial distance: " + str(1/rank_routes(population, distances_matrix)[0][1]))
 
     for i in range(generations):
-        population = generate_new_generation(population, eliteSize, mutation_rate, distances_matrix)
+        population = generate_new_generation(population, elite_size, mutation_rate, distances_matrix)
 
     print("Final distance: " + str(1/rank_routes(population, distances_matrix)[0][1]))
     index = rank_routes(population, distances_matrix)[0][0]
@@ -195,14 +195,14 @@ def do_genetic_search(distances_matrix, cities_count, population_size, eliteSize
 
 def main():
     # Get city distances
-    data_filename = "data/10cities"
-    cities_count = 10
-    distances_file = open(path.join(path.dirname(__file__), data_filename))
-    all_distances = get_distances(distances_file, cities_count)
+    directory_data_filename = "data/10cities"
+    variable_cities_count = 10
+    distances_file = open(path.join(path.dirname(__file__), directory_data_filename))
+    all_distances = get_distances(distances_file, variable_cities_count)
     # Apply exhaustive search
     # do_exhaustive_search(0, all_distances)
     # Apply genetic search
-    do_genetic_search(all_distances, cities_count, 100, 20, 0.01, 500)
+    do_genetic_search(100, 20, 0.01, 500, all_distances)
 
 
 if __name__ == "__main__":

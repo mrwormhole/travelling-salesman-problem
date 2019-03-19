@@ -1,35 +1,54 @@
-from os import path
 import itertools
 import random
 import operator
-import sys
-import math
 import pandas as pd
 import numpy as np
 
 
-def get_distances(distances_file, cities_count):
+def print_cities_and_distances(cities, distances):
     """
-    This constructs our distance 2 dimensional matrix
-    Input: 1 4 Output: [[1,4],[2,1]
-           2 1
+    This is for printing our distances matrix
     """
-    all_distances = list()
-    for each_line in distances_file:
-        current = list()
-        for i in range(cities_count):
-            current.append(int(each_line.split()[i]))
-        all_distances.append(current)
-    return all_distances
+    df = pd.DataFrame(data=distances, columns=cities, index=cities)
+    print(df)
 
 
-def get_specific_permutations(start_point, arr):
+def create_random_cities_and_distances():
     """
-    This gets rid of opposite mirrored permutations from list
-    Input: [1,2,3],1 Output: [(1,2,3),(1,3,2)]
+    This is for generating our distances matrix as 2D array
     """
-    all_permutations = list(itertools.permutations(arr))  # this is all permutations with little twist n!/2
-    specific_permutations = list()  # this is where we have startPoints as first index
+    cities_count = random.randint(3, 9)
+    cities = [c for c in range(cities_count)]
+    distances = [[] for _ in range(cities_count)]
+
+    for i in range(cities_count):
+        for j in range(cities_count):
+            if i == j:
+                distance = 0
+            elif i > j:
+                distance = distances[j][i]
+            else:
+                distance = random.randint(1, 100)
+            distances[i].append(distance)
+    print_cities_and_distances(cities, distances)
+    return distances
+
+
+def get_cities(cities_count):
+    """
+    This is for generating cities in 1D array
+    """
+    return [c for c in range(cities_count)]
+
+
+def get_specific_permutations(start_point, cities):
+    """
+    This gets rid of opposite mirrored permutations from list and ensures starting point is the first index
+    Input: 1,[1,2,3] Output: [(1,2,3),(1,3,2)]
+    """
+    all_permutations = list(itertools.permutations(cities))  # this is all permutations n!
+    specific_permutations = list()  # this is where we have start point as first index
+                                    # and mirrored routes are removed (n-1)!/2
     for perm in all_permutations:
         if perm[::-1] in all_permutations:
             all_permutations.remove(perm[::-1])
@@ -42,43 +61,46 @@ def get_specific_permutations(start_point, arr):
 
 
 def do_exhaustive_search(starting_point, distances_matrix):
+    cities = get_cities(len(distances_matrix))  # we resemble [A,B,C,D,E] as [0,1,2,3,4]
     start_point = starting_point  # 0 means A, 1 means B, 2 means C etc.
-    matrix_length = len(distances_matrix)
-    if start_point >= matrix_length or start_point <= 0:
+    if start_point >= len(cities) or start_point < 0:
         start_point = 0
-    cities = list()  # we resemble [A,B,C,D,E] as [0,1,2,3,4]
-    for i in range(matrix_length):
-        cities.append(i)
     specific_routes = get_specific_permutations(start_point, cities)
-    print("Routes: " + str(specific_routes))
     results = list()  # for all of the sum values for each route
 
     for route in specific_routes:
         sum = 0
-        '''sum += distances_matrix[route[0]][route[1]]
-        sum += distances_matrix[route[1]][route[2]]
-        sum += distances_matrix[route[2]][route[0]]'''
         for i in range(len(route)-1):
             sum += distances_matrix[route[i]][route[i+1]]
         sum += distances_matrix[route[len(route)-1]][route[0]]
         results.append(sum)
-    print("Results: " + str(results))
+
     index = results.index(min(results))
     print("Your path route is: " + str(specific_routes[index]))
     print("Freshly calculated shortest path takes: " + str(min(results)))
 
 
-def create_initial_population(population_size, cities_count):
+def create_initial_population(starting_point, cities, population_size):
+    """
+    This creates random routes as an array and stores into population.
+    There can be duplicates. First index is always starting point
+    """
+    start_point = starting_point  # 0 means A, 1 means B, 2 means C etc.
+    if start_point >= len(cities) or start_point < 0:
+        start_point = 0
     population = []
-    cities = []
-    for i in range(cities_count):
-        cities.append(i)
-    for i in range(population_size):
-        population.append(random.sample(cities, cities_count))
+    while len(population) != population_size:
+        temp = random.sample(cities, len(cities))
+        if temp[0] == start_point:
+            population.append(temp)
     return population
 
 
 def get_fitness_score(route, distances_matrix):
+    """
+    This gets the fitness score of the route
+    Longer the route lower the score becomes
+    """
     distance = 0
     for i in range(len(route)-1):
         distance += distances_matrix[route[i]][route[i+1]]
@@ -87,6 +109,10 @@ def get_fitness_score(route, distances_matrix):
 
 
 def rank_routes(population, distances_matrix):
+    """
+    This function creates hash map as key,value pairs and
+    Returns sorted according to fitness score like [(1, 0.0792), (3, 0.0760), (2, 0.0742), (4, 0.0739)]
+    """
     fitness_results = {}
     for i in range(len(population)):
         fitness_results[i] = get_fitness_score(population[i], distances_matrix)
@@ -94,6 +120,12 @@ def rank_routes(population, distances_matrix):
 
 
 def selection(population_ranked, elite_size):
+    """
+    This function guarantees first elites to be included in output array according to fitness points
+    Then for the remaining part it picks random percentage and compares it with the cumulative percentage
+    If that percentage is higher it adds it and goes for the next iteration until it feels population back to its size
+    Lower the pick more healthy population will be generated but variation will get less which is something we dont like
+    """
     selection_results = []
     df = pd.DataFrame(np.array(population_ranked), columns=["Index", "Fitness"])
     df["cum_sum"] = df.Fitness.cumsum()
@@ -111,6 +143,9 @@ def selection(population_ranked, elite_size):
 
 
 def get_mating_pool(population, selection_results):
+    """
+    This function gets our population in array with respect to selection results
+    """
     mating_pool = []
     for i in range(len(selection_results)):
         index = selection_results[i]
@@ -119,25 +154,38 @@ def get_mating_pool(population, selection_results):
 
 
 def breed(parent1, parent2):
+    """
+    This functions constructs a child from parent1 and parent2.ChildPart1 comes from parent1 and
+    ChildPart2 comes from parent2.Idea is we always pick [0 to random value] interval from parent1 and
+    Complete missing parts from parent1 with order
+    """
     child = []
     childPart1 = []
     childPart2 = []
 
-    geneA = int(random.random() * len(parent1))
-    geneB = int(random.random() * len(parent1))
-    startingPointOfGene = min(geneA, geneB)
-    endingPointOfGene = max(geneA, geneB)
+    geneA = random.randint(0,len(parent1)-1)
+    geneB = random.randint(0,len(parent1)-1)
+    startingPointOfGene = 0  # set to 0 because we wanna keep our starting point in child
+    endingPointOfGene = (geneA+geneB) // 2 + 1
+    if endingPointOfGene == len(parent1):
+        endingPointOfGene -= 1
 
-    for i in range(startingPointOfGene,endingPointOfGene):
+    for i in range(0, endingPointOfGene):
         childPart1.append(parent1[i])
 
-    childPart2 = [item for item in parent2 if item not in childPart1]
+    childPart2 = [i for i in parent2 if i not in childPart1]
 
     child = childPart1 + childPart2
     return child
 
 
 def breed_population(mating_pool, elite_size):
+    """
+    Elites directly become the children since they don't die for generations.Pool is obtained by random samples
+    Of mating pool.In mating pool one couple can have more than 1 kids but their kids can be different than the siblings
+    In odd number of populations a person can have a kid by itself and the kid will be exactly itself.Make sure we dont
+    Have odd population numbers for more variety
+    """
     children = []
     length = len(mating_pool) - elite_size
     pool = random.sample(mating_pool, len(mating_pool))
@@ -152,9 +200,12 @@ def breed_population(mating_pool, elite_size):
 
 
 def mutate(individual, mutation_rate):
-    for swapped in range(len(individual)):
+    """
+    Mutation is actually basic swap operation which depends on its rate for each iteration
+    """
+    for swapped in range(1, len(individual)):
         if random.random() < mutation_rate:
-            swapWith = int(random.random() * len(individual))
+            swapWith = random.randint(1, len(individual)-1)
             city1 = individual[swapped]
             city2 = individual[swapWith]
             individual[swapped] = city2
@@ -163,6 +214,9 @@ def mutate(individual, mutation_rate):
 
 
 def mutate_population(population, mutation_rate):
+    """
+    Tries to apply mutation to all population
+    """
     population_mutated = []
 
     for i in range(len(population)):
@@ -172,37 +226,40 @@ def mutate_population(population, mutation_rate):
 
 
 def generate_new_generation(current_generation, elite_size, mutation_rate, distances_matrix):
-    popRanked = rank_routes(current_generation, distances_matrix)
-    selection_results = selection(popRanked, elite_size)
+    """
+    Generates a new population from the 1 generation older population
+    """
+    population_ranked = rank_routes(current_generation, distances_matrix)
+    selection_results = selection(population_ranked, elite_size)
     mating_pool = get_mating_pool(current_generation, selection_results)
     children = breed_population(mating_pool, elite_size)
     next_generation = mutate_population(children, mutation_rate)
+
     return next_generation
 
 
-def do_genetic_search(population_size, elite_size, mutation_rate, generations, distances_matrix):
-    population = create_initial_population(population_size, len(distances_matrix[0]))
+def do_genetic_search(starting_point, population_size, elite_size, mutation_rate, generations, distances_matrix):
+    population = create_initial_population(starting_point, get_cities(len(distances_matrix)) ,population_size)
     print("Initial distance: " + str(1/rank_routes(population, distances_matrix)[0][1]))
 
     for i in range(generations):
         population = generate_new_generation(population, elite_size, mutation_rate, distances_matrix)
+        print("Distance: " + str(1 / rank_routes(population, distances_matrix)[0][1]))
 
     print("Final distance: " + str(1/rank_routes(population, distances_matrix)[0][1]))
     index = rank_routes(population, distances_matrix)[0][0]
     route = population[index]
+    print("Your ideal route path is: " + str(route))
     return route
 
 
 def main():
-    # Get city distances
-    directory_data_filename = "data/10cities"
-    variable_cities_count = 10
-    distances_file = open(path.join(path.dirname(__file__), directory_data_filename))
-    all_distances = get_distances(distances_file, variable_cities_count)
+    # Generate and get city distances
+    all_distances = create_random_cities_and_distances()
     # Apply exhaustive search
-    # do_exhaustive_search(0, all_distances)
+    do_exhaustive_search(0, all_distances)
     # Apply genetic search
-    do_genetic_search(100, 20, 0.01, 500, all_distances)
+    do_genetic_search(0, 100, 20, 0.01, 500, all_distances)
 
 
 if __name__ == "__main__":

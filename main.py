@@ -3,6 +3,7 @@ import random
 import operator
 import pandas as pd
 import numpy as np
+from math import inf as oo
 
 
 def print_cities_and_distances(cities, distances):
@@ -17,7 +18,7 @@ def create_random_cities_and_distances():
     """
     This is for generating our distances matrix as 2D array
     """
-    cities_count = random.randint(3, 9)
+    cities_count = random.randint(4, 4)
     cities = [c for c in range(cities_count)]
     distances = [[] for _ in range(cities_count)]
 
@@ -76,8 +77,40 @@ def do_exhaustive_search(starting_point, distances_matrix):
         results.append(sum)
 
     index = results.index(min(results))
-    print("Your path route is: " + str(specific_routes[index]))
-    print("Freshly calculated shortest path takes: " + str(min(results)))
+    print("Your route is: " + str(specific_routes[index]))
+    print("Freshly calculated shortest route takes: " + str(min(results)))
+    return min(results), specific_routes[index]
+
+
+def do_greedy_search(starting_point, distances_matrix):
+    cities = get_cities(len(distances_matrix))
+    start_point = starting_point  # 0 means A, 1 means B, 2 means C
+    if start_point >= len(cities) or start_point < 0:
+        start_point = 0
+    current_point = start_point
+    shortest_route = oo
+    visited_route = list()
+    visited_route.append(current_point)
+    available_path = cities  # [0,1,2,3] for 4 cities
+    sum = 0
+
+    while True:
+        for i in range(len(cities)):
+            if available_path[i] == current_point:
+                continue
+            shortest_route = min(shortest_route, distances_matrix[current_point][available_path[i]])
+            picked_path = available_path[i]
+        if len(available_path) <= 1:
+            sum += distances_matrix[current_point][start_point]
+            print("Route: " + str(visited_route))
+            print("Distance: " + str(sum))
+            return sum, visited_route
+        else:
+            sum += distances_matrix[current_point][picked_path]
+            visited_route.append(picked_path)
+            available_path.remove(current_point)
+            current_point = picked_path
+            shortest_route = oo
 
 
 def create_initial_population(starting_point, cities, population_size):
@@ -130,7 +163,6 @@ def selection(population_ranked, elite_size):
     df = pd.DataFrame(np.array(population_ranked), columns=["Index", "Fitness"])
     df["cum_sum"] = df.Fitness.cumsum()
     df["cum_perc"] = 100 * df.cum_sum/df.Fitness.sum()
-
     for i in range(elite_size):
         selection_results.append(population_ranked[i][0])
     for i in range(len(population_ranked) - elite_size):
@@ -249,17 +281,19 @@ def do_genetic_search(starting_point, population_size, elite_size, mutation_rate
     print("Final distance: " + str(1/rank_routes(population, distances_matrix)[0][1]))
     index = rank_routes(population, distances_matrix)[0][0]
     route = population[index]
-    print("Your ideal route path is: " + str(route))
-    return route
+    print("Your ideal route is: " + str(route))
+    return 1/rank_routes(population, distances_matrix)[0][1], route
 
 
 def main():
     # Generate and get city distances
     all_distances = create_random_cities_and_distances()
     # Apply exhaustive search
-    do_exhaustive_search(0, all_distances)
+    #do_exhaustive_search(0, all_distances)
     # Apply genetic search
-    do_genetic_search(0, 100, 20, 0.01, 500, all_distances)
+    #do_genetic_search(0, 100, 20, 0.01, 1, all_distances)
+    # Apply greedy search
+    do_greedy_search(3, all_distances)
 
 
 if __name__ == "__main__":

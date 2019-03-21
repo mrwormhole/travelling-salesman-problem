@@ -18,7 +18,7 @@ def create_random_cities_and_distances():
     """
     This is for generating our distances matrix as 2D array
     """
-    cities_count = random.randint(4, 4)
+    cities_count = random.randint(40, 40)
     cities = [c for c in range(cities_count)]
     distances = [[] for _ in range(cities_count)]
 
@@ -88,29 +88,30 @@ def do_greedy_search(starting_point, distances_matrix):
     if start_point >= len(cities) or start_point < 0:
         start_point = 0
     current_point = start_point
-    shortest_route = oo
+    shortest_distance = oo
     visited_route = list()
     visited_route.append(current_point)
     available_path = cities  # [0,1,2,3] for 4 cities
     sum = 0
 
-    while True:
+    for i in range(len(cities)):
         for i in range(len(cities)):
             if available_path[i] == current_point:
                 continue
-            shortest_route = min(shortest_route, distances_matrix[current_point][available_path[i]])
-            picked_path = available_path[i]
+            shortest_distance = min(shortest_distance, distances_matrix[current_point][available_path[i]])
+            picked_point = available_path[i]
         if len(available_path) <= 1:
             sum += distances_matrix[current_point][start_point]
             print("Route: " + str(visited_route))
             print("Distance: " + str(sum))
-            return sum, visited_route
+            break
         else:
-            sum += distances_matrix[current_point][picked_path]
-            visited_route.append(picked_path)
+            sum += distances_matrix[current_point][picked_point]
+            visited_route.append(picked_point)
             available_path.remove(current_point)
-            current_point = picked_path
-            shortest_route = oo
+            current_point = picked_point
+            shortest_distance = oo
+    return sum, visited_route
 
 
 def create_initial_population(starting_point, cities, population_size):
@@ -293,7 +294,7 @@ def main():
     # Apply genetic search
     #do_genetic_search(0, 100, 20, 0.01, 1, all_distances)
     # Apply greedy search
-    do_greedy_search(3, all_distances)
+    # do_greedy_search(0, all_distances)
 
 
 if __name__ == "__main__":

@@ -94,17 +94,17 @@ def do_greedy_search(starting_point, distances_matrix):
     available_path = cities  # [0,1,2,3] for 4 cities
     sum = 0
 
-    for i in range(len(cities)):
+    for city in range(len(cities)):
         for i in range(len(cities)):
             if available_path[i] == current_point:
                 continue
+            elif shortest_distance > distances_matrix[current_point][available_path[i]]:
+                picked_point = available_path[i]
             shortest_distance = min(shortest_distance, distances_matrix[current_point][available_path[i]])
-            picked_point = available_path[i]
         if len(available_path) <= 1:
             sum += distances_matrix[current_point][start_point]
             print("Route: " + str(visited_route))
             print("Distance: " + str(sum))
-            break
         else:
             sum += distances_matrix[current_point][picked_point]
             visited_route.append(picked_point)
@@ -123,10 +123,12 @@ def create_initial_population(starting_point, cities, population_size):
     if start_point >= len(cities) or start_point < 0:
         start_point = 0
     population = []
-    while len(population) != population_size:
+    for i in range(population_size):
         temp = random.sample(cities, len(cities))
-        if temp[0] == start_point:
-            population.append(temp)
+        if start_point in temp:
+            temp.remove(start_point)
+        temp[:0] = [start_point]
+        population.append(temp)
     return population
 
 
@@ -203,7 +205,7 @@ def breed(parent1, parent2):
     if endingPointOfGene == len(parent1):
         endingPointOfGene -= 1
 
-    for i in range(0, endingPointOfGene):
+    for i in range(startingPointOfGene, endingPointOfGene):
         childPart1.append(parent1[i])
 
     childPart2 = [i for i in parent2 if i not in childPart1]
